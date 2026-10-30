@@ -10,11 +10,6 @@ from transactions.services import totals
 
 MONEY_FIELD = DecimalField(max_digits=12, decimal_places=2)
 
-
-
-MONEY_FIELD = DecimalField(max_digits=12, decimal_places=2)
-
-
 def get_dashboard_data(user):
     """
     Build the financial summary, latest transactions and budget indicators
