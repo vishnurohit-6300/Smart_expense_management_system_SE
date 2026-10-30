@@ -149,3 +149,54 @@ def test_dashboard_totals_update_after_create_edit_and_delete(auth, user, catego
 
     item.delete()
     assert get_dashboard(auth).context["expense"] == Decimal("0.00")
+
+def test_dashboard_requires_login(client):
+    response = get_dashboard(client)
+
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("accounts:login"))
+
+
+def test_dashboard_reflects_transaction_create_edit_delete_requests(
+    auth, user, category
+):
+    create_response = auth.post(
+        reverse("transactions:new"),
+        {
+            "kind": Category.EXPENSE,
+            "category": category.pk,
+            "amount": "250.00",
+            "date": "2026-10-10",
+            "description": "Integration test expense",
+        },
+    )
+
+    assert create_response.status_code == 302
+
+    item = Transaction.objects.get(
+        owner=user,
+        description="Integration test expense",
+    )
+    assert get_dashboard(auth).context["expense"] == Decimal("250.00")
+
+    edit_response = auth.post(
+        reverse("transactions:edit", args=[item.pk]),
+        {
+            "kind": Category.EXPENSE,
+            "category": category.pk,
+            "amount": "400.00",
+            "date": "2026-10-10",
+            "description": "Updated integration expense",
+        },
+    )
+
+    assert edit_response.status_code == 302
+    assert get_dashboard(auth).context["expense"] == Decimal("400.00")
+
+    delete_response = auth.post(
+        reverse("transactions:delete", args=[item.pk])
+    )
+
+    assert delete_response.status_code == 302
+    assert not Transaction.objects.filter(pk=item.pk).exists()
+    assert get_dashboard(auth).context["expense"] == Decimal("0.00")
