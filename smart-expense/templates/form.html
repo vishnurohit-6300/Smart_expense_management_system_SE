@@ -1,1 +1,34 @@
-{% extends 'base.html' %}{% block content %}<h1>{{ title }}</h1><form method="post" class="panel">{% csrf_token %}{{ form.as_p }}<button>Save</button></form>{% endblock %}
+
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | Smart Expense{% endblock %}
+
+{% block content %}
+
+<section class="form-page">
+
+    <header>
+        <h1>{{ title }}</h1>
+        <p class="muted">
+            Enter the required details below and save your changes.
+        </p>
+    </header>
+
+    <form method="post" class="panel">
+        {% csrf_token %}
+
+        {% include 'partials/form_errors.html' %}
+
+        {{ form.as_p }}
+
+        <div class="form-actions">
+            <button type="submit">Save changes</button>
+            <a href="javascript:history.back()" class="button">
+                Cancel
+            </a>
+        </div>
+    </form>
+
+</section>
+
+{% endblock %}
