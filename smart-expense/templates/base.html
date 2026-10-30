@@ -1,8 +1,455 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Smart Expense{% endblock %}</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#183044;font:16px/1.5 system-ui,sans-serif}nav{background:#142f43;color:white;padding:18px 4%;display:flex;gap:18px;align-items:center;flex-wrap:wrap}nav a{color:white}nav strong{margin-right:auto}main{max-width:1100px;margin:32px auto;padding:0 22px}a{color:#006a76}h1{font-size:30px;letter-spacing:-1px}h2{font-size:21px}.card,form.panel{background:white;border:1px solid #dce4ec;border-radius:12px;padding:22px;margin:16px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}.number{font-size:30px;font-weight:700}button,.button{background:#006a76;color:white;border:0;border-radius:6px;padding:10px 16px;cursor:pointer;text-decoration:none;display:inline-block}input,select{padding:10px;max-width:100%;border:1px solid #aab9c7;border-radius:5px;font:inherit}label{display:block;font-weight:600}form p{margin:14px 0}table{width:100%;border-collapse:collapse;background:white}th,td{text-align:left;padding:12px;border-bottom:1px solid #dde5ed}.scroll{overflow:auto}small,.helptext{color:#516879}.errorlist,[role=alert]{color:#9f2231}.badge{font-weight:700}nav form{margin:0}.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.filters p{max-width:220px}.muted{color:#516879}
-</style></head><body><nav><strong>Smart Expense</strong>{% if user.is_authenticated %}
-<a href="{% url 'dashboard:home' %}">Dashboard</a><a href="{% url 'categories:list' %}">Categories</a><a href="{% url 'transactions:list' %}">Transactions</a><a href="{% url 'budgets:list' %}">Budgets</a><a href="{% url 'reports:list' %}">Reports & analytics</a>{% if user.is_staff %}<a href="/django-admin/">Admin</a>{% endif %}
-<form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button>Logout</button></form>{% else %}<a href="{% url 'accounts:login' %}">Login</a><a href="{% url 'accounts:register' %}">Register</a>{% endif %}</nav><main>
-{% for m in messages %}<p role="alert">{{ m }}</p>{% endfor %}{% block content %}{% endblock %}</main></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Smart Expense - personal expense and budget management">
+    <title>{% block title %}Smart Expense{% endblock %}</title>
+
+    <style>
+        :root {
+            --primary: #176b63;
+            --primary-dark: #10534d;
+            --background: #f4f7f8;
+            --surface: #ffffff;
+            --text: #1d3035;
+            --muted: #63777b;
+            --border: #dce5e7;
+            --success-bg: #e8f6ed;
+            --error-bg: #fff0ef;
+            --warning-bg: #fff7e5;
+            --info-bg: #eaf3ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        a {
+            color: var(--primary);
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -9999px;
+            top: 10px;
+            background: white;
+            padding: 10px;
+            z-index: 10;
+        }
+
+        .skip-link:focus {
+            left: 10px;
+        }
+
+        .site-header {
+            background: #16383b;
+            color: white;
+            padding: 14px 5%;
+        }
+
+        .header-inner {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            text-decoration: none;
+            font-size: 19px;
+            font-weight: 750;
+            margin-right: auto;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: #2d8b7e;
+            color: white;
+        }
+
+        .site-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: #e4efed;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 7px;
+            font-size: 14px;
+        }
+
+        .nav-link:hover,
+        .nav-link[aria-current="page"] {
+            background: #285653;
+            color: white;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-label {
+            color: #c9dbd8;
+            font-size: 13px;
+        }
+
+        button,
+        .button {
+            border: 0;
+            border-radius: 7px;
+            background: var(--primary);
+            color: white;
+            padding: 10px 16px;
+            font: inherit;
+            font-weight: 650;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        button:hover,
+        .button:hover {
+            background: var(--primary-dark);
+        }
+
+        .logout-button {
+            background: transparent;
+            border: 1px solid #7b9b96;
+            padding: 7px 12px;
+        }
+
+        .logout-button:hover {
+            background: #285653;
+        }
+
+        main {
+            max-width: 1120px;
+            margin: 32px auto;
+            padding: 0 22px;
+            min-height: 65vh;
+        }
+
+        h1 {
+            font-size: clamp(25px, 4vw, 34px);
+            line-height: 1.2;
+            letter-spacing: -0.7px;
+        }
+
+        h2 {
+            font-size: 21px;
+        }
+
+        .muted,
+        .helptext {
+            color: var(--muted);
+        }
+
+        .card,
+        .panel,
+        form.panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+            margin: 16px 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .number {
+            font-size: 30px;
+            font-weight: 750;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            max-width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #b8c7ca;
+            border-radius: 6px;
+            background: white;
+            color: var(--text);
+            font: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus,
+        button:focus-visible,
+        a:focus-visible {
+            outline: 3px solid #8bc8bd;
+            outline-offset: 2px;
+        }
+
+        label {
+            display: block;
+            font-weight: 650;
+        }
+
+        form p {
+            margin: 14px 0;
+        }
+
+        .errorlist {
+            color: #a42d2d;
+            margin: 5px 0;
+        }
+
+        .form-errors {
+            background: var(--error-bg);
+            border: 1px solid #e6a5a0;
+            border-left: 5px solid #b83232;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 16px 0;
+            color: #842626;
+        }
+
+        .form-errors h2 {
+            margin-top: 0;
+            font-size: 17px;
+        }
+
+        .form-errors a {
+            color: #842626;
+        }
+
+        .messages {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+
+        .message {
+            border-radius: 8px;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+
+        .message p {
+            margin: 0;
+        }
+
+        .message--success {
+            background: var(--success-bg);
+            color: #205c38;
+        }
+
+        .message--error {
+            background: var(--error-bg);
+            color: #842626;
+        }
+
+        .message--warning {
+            background: var(--warning-bg);
+            color: #765412;
+        }
+
+        .message--info,
+        .message--debug {
+            background: var(--info-bg);
+            color: #24517b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .scroll {
+            overflow-x: auto;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: end;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            padding: 24px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        @media (max-width: 760px) {
+            .header-inner {
+                gap: 12px;
+            }
+
+            .brand {
+                width: 100%;
+            }
+
+            .site-nav {
+                width: 100%;
+            }
+
+            .nav-link {
+                padding: 7px 9px;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            main {
+                margin-top: 22px;
+                padding: 0 15px;
+            }
+
+            .card,
+            .panel {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+        <div class="header-inner">
+
+            <a class="brand" href="{% if user.is_authenticated %}{% url 'dashboard:home' %}{% else %}{% url 'accounts:login' %}{% endif %}">
+                <span class="brand-mark">SE</span>
+                <span>Smart Expense</span>
+            </a>
+
+            {% if user.is_authenticated %}
+                <nav class="site-nav" aria-label="Main navigation">
+                    <a class="nav-link"
+                       href="{% url 'dashboard:home' %}"
+                       {% if request.resolver_match.namespace == "dashboard" %}aria-current="page"{% endif %}>
+                        Dashboard
+                    </a>
+
+                    <a class="nav-link"
+                       href="{% url 'categories:list' %}"
+                       {% if request.resolver_match.namespace == "categories" %}aria-current="page"{% endif %}>
+                        Categories
+                    </a>
+
+                    <a class="nav-link"
+                       href="{% url 'transactions:list' %}"
+                       {% if request.resolver_match.namespace == "transactions" %}aria-current="page"{% endif %}>
+                        Transactions
+                    </a>
+
+                    <a class="nav-link"
+                       href="{% url 'budgets:list' %}"
+                       {% if request.resolver_match.namespace == "budgets" %}aria-current="page"{% endif %}>
+                        Budgets
+                    </a>
+
+                    <a class="nav-link"
+                       href="{% url 'reports:list' %}"
+                       {% if request.resolver_match.namespace == "reports" %}aria-current="page"{% endif %}>
+                        Reports
+                    </a>
+
+                    {% if user.is_staff %}
+                        <a class="nav-link" href="{% url 'admin:index' %}">
+                            Admin
+                        </a>
+                    {% endif %}
+                </nav>
+
+                <div class="header-actions">
+                    <span class="user-label">
+                        Signed in as {{ user.username }}
+                    </span>
+
+                    <form method="post"
+                          action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button class="logout-button" type="submit">
+                            Log out
+                        </button>
+                    </form>
+                </div>
+
+            {% else %}
+                <nav class="site-nav" aria-label="Account navigation">
+                    <a class="nav-link" href="{% url 'accounts:login' %}">
+                        Login
+                    </a>
+                    <a class="nav-link" href="{% url 'accounts:register' %}">
+                        Register
+                    </a>
+                </nav>
+            {% endif %}
+
+        </div>
+    </header>
+
+    <main id="main-content">
+
+        {% if messages %}
+            <section class="messages" aria-label="Notifications">
+                {% for message in messages %}
+                    <div class="message message--{{ message.level_tag }}"
+                         {% if message.level_tag == "error" or message.level_tag == "warning" %}
+                             role="alert" aria-live="assertive"
+                         {% else %}
+                             role="status" aria-live="polite"
+                         {% endif %}>
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+    <footer>
+        Smart Expense Management System · Manage your money with clarity.
+    </footer>
+</body>
+</html>
