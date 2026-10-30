@@ -1,1 +1,474 @@
-{% extends 'base.html' %}{% block content %}<h1>Your financial overview</h1><p class="muted">All-time totals · INR · {{ user.username }}</p><div class="grid"><div class="card">Income<div class="number">{{ income|floatformat:2 }}</div></div><div class="card">Expenses<div class="number">{{ expense|floatformat:2 }}</div></div><div class="card">Balance<div class="number">{{ balance|floatformat:2 }}</div></div></div><a class="button" href="{% url 'transactions:new' %}">Add transaction</a><h2>Budget status and alerts</h2>{% for b in budgets %}<div class="card"><strong>{{ b.category.name }}: {{ b.status }}</strong><p>{{ b.spent|floatformat:2 }} / {{ b.limit }} INR · {{ b.progress|floatformat:1 }}%</p>{% if b.status != 'On track' %}<p role="alert">{{ b.status }}: spending has reached {{ b.progress|floatformat:1 }}% of this budget.</p>{% endif %}</div>{% empty %}<p>No budgets yet.</p>{% endfor %}<h2>Recent transactions</h2><div class="scroll"><table><tr><th>Date</th><th>Category</th><th>Type</th><th>Amount</th></tr>{% for i in recent %}<tr><td>{{ i.date }}</td><td>{{ i.category.name }}</td><td>{{ i.kind }}</td><td>{{ i.amount }}</td></tr>{% empty %}<tr><td colspan="4">Create categories, then add your first transaction.</td></tr>{% endfor %}</table></div>{% endblock %}
+
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | Smart Expense{% endblock %}
+
+{% block content %}
+
+<style>
+    .dashboard-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .dashboard-heading h1 {
+        margin-bottom: 5px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 18px;
+        margin: 24px 0;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1px solid #dce5e7;
+        border-radius: 13px;
+        padding: 22px;
+        box-shadow: 0 3px 12px rgba(20, 50, 55, 0.04);
+    }
+
+    .summary-label {
+        color: #63777b;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .summary-value {
+        font-size: clamp(23px, 3vw, 30px);
+        font-weight: 750;
+        margin: 10px 0 4px;
+        overflow-wrap: anywhere;
+    }
+
+    .income-value {
+        color: #16834a;
+    }
+
+    .expense-value {
+        color: #c34848;
+    }
+
+    .balance-value {
+        color: #176b63;
+    }
+
+    .section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 32px 0 14px;
+    }
+
+    .section-heading h2 {
+        margin: 0;
+    }
+
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+    }
+
+    .dashboard-table th {
+        background: #f1f6f6;
+        color: #40565a;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .dashboard-table td,
+    .dashboard-table th {
+        padding: 14px 12px;
+        border-bottom: 1px solid #e5ecec;
+        text-align: left;
+    }
+
+    .dashboard-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .transaction-description {
+        font-weight: 650;
+    }
+
+    .transaction-type {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .type-income {
+        background: #e8f6ed;
+        color: #21633d;
+    }
+
+    .type-expense {
+        background: #fff0ef;
+        color: #9a3434;
+    }
+
+    .budget-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+    }
+
+    .budget-card {
+        background: white;
+        border: 1px solid #dce5e7;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .budget-card h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .budget-meta {
+        color: #63777b;
+        font-size: 13px;
+        margin: 7px 0 15px;
+    }
+
+    .budget-amounts {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 14px;
+        margin-bottom: 9px;
+    }
+
+    .budget-progress {
+        width: 100%;
+        height: 11px;
+        accent-color: #16834a;
+    }
+
+    .budget-progress.warning {
+        accent-color: #d39a28;
+    }
+
+    .budget-progress.exceeded {
+        accent-color: #c34848;
+    }
+
+    .budget-status {
+        display: inline-block;
+        padding: 5px 11px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 750;
+        margin-top: 12px;
+    }
+
+    .status-on-track {
+        color: #21633d;
+        background: #e8f6ed;
+    }
+
+    .status-warning {
+        color: #765412;
+        background: #fff7e5;
+    }
+
+    .status-exceeded {
+        color: #9a3434;
+        background: #fff0ef;
+    }
+
+    .budget-alert {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 7px;
+        background: #fff7e5;
+        color: #765412;
+        font-size: 13px;
+    }
+
+    .budget-alert.exceeded-alert {
+        background: #fff0ef;
+        color: #9a3434;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 30px 16px;
+        color: #63777b;
+    }
+
+    .dashboard-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 600px) {
+        .summary-card,
+        .budget-card {
+            padding: 16px;
+        }
+
+        .dashboard-table td,
+        .dashboard-table th {
+            padding: 11px 9px;
+        }
+    }
+</style>
+
+<section class="dashboard">
+
+    <div class="dashboard-heading">
+        <div>
+            <h1>Financial Overview</h1>
+            <p class="muted">
+                Welcome, {{ user.username }}. Here's your financial summary.
+            </p>
+        </div>
+
+        <div class="dashboard-actions">
+            <a class="button" href="{% url 'transactions:new' %}">
+                + Add Transaction
+            </a>
+
+            <a class="button" href="{% url 'budgets:new' %}">
+                + Create Budget
+            </a>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+
+    <section aria-label="Financial summary">
+
+        <div class="summary-grid">
+
+            <div class="summary-card">
+                <div class="summary-label">Total Income</div>
+
+                <div class="summary-value income-value">
+                    ₹{{ income|floatformat:2 }}
+                </div>
+
+                <p class="muted">All recorded income</p>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-label">Total Expenses</div>
+
+                <div class="summary-value expense-value">
+                    ₹{{ expense|floatformat:2 }}
+                </div>
+
+                <p class="muted">All recorded expenses</p>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-label">Available Balance</div>
+
+                <div class="summary-value balance-value">
+                    ₹{{ balance|floatformat:2 }}
+                </div>
+
+                <p class="muted">Income minus expenses</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Budget Monitoring -->
+
+    <section aria-labelledby="budget-heading">
+
+        <div class="section-heading">
+            <h2 id="budget-heading">Budget Monitoring</h2>
+
+            <a href="{% url 'budgets:list' %}">
+                View all budgets
+            </a>
+        </div>
+
+        <div class="budget-grid">
+
+            {% for b in budgets %}
+
+                <article class="budget-card">
+
+                    <h3>{{ b.category }}</h3>
+
+                    <p class="budget-meta">
+                        {{ b.start_date|date:"d M Y" }}
+                        – {{ b.end_date|date:"d M Y" }}
+                    </p>
+
+                    <div class="budget-amounts">
+                        <strong>₹{{ b.spent|floatformat:2 }}</strong>
+
+                        <span>
+                            of ₹{{ b.limit|floatformat:2 }}
+                        </span>
+                    </div>
+
+                    <progress
+                        class="budget-progress {% if b.status == 'Warning' %}warning{% elif b.status == 'Exceeded' %}exceeded{% endif %}"
+                        value="{{ b.progress_bar }}"
+                        max="100"
+                        aria-label="Budget progress for {{ b.category }}">
+                    </progress>
+
+                    <p>
+                        {{ b.progress|floatformat:1 }}% used
+                        · Alert threshold: {{ b.threshold }}%
+                    </p>
+
+                    {% if b.status == "Exceeded" %}
+
+                        <span class="budget-status status-exceeded">
+                            Budget Exceeded
+                        </span>
+
+                        <div class="budget-alert exceeded-alert" role="alert">
+                            You have exceeded your budget limit.
+                            Review your spending.
+                        </div>
+
+                    {% elif b.status == "Warning" %}
+
+                        <span class="budget-status status-warning">
+                            Warning
+                        </span>
+
+                        <div class="budget-alert" role="alert">
+                            You have reached your budget warning threshold.
+                            Monitor your remaining spending.
+                        </div>
+
+                    {% else %}
+
+                        <span class="budget-status status-on-track">
+                            On Track
+                        </span>
+
+                    {% endif %}
+
+                </article>
+
+            {% empty %}
+
+                <div class="budget-card empty-state">
+                    <h3>No budgets created yet</h3>
+
+                    <p>
+                        Create a budget to monitor your spending.
+                    </p>
+
+                    <a class="button" href="{% url 'budgets:new' %}">
+                        Create your first budget
+                    </a>
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+    <!-- Recent Transactions -->
+
+    <section aria-labelledby="recent-heading">
+
+        <div class="section-heading">
+            <h2 id="recent-heading">Recent Transactions</h2>
+
+            <a href="{% url 'transactions:list' %}">
+                View all transactions
+            </a>
+        </div>
+
+        <div class="card scroll">
+
+            <table class="dashboard-table">
+
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in recent %}
+
+                        <tr>
+                            <td>{{ item.date|date:"d M Y" }}</td>
+
+                            <td class="transaction-description">
+                                {{ item.description|default:"No description" }}
+                            </td>
+
+                            <td>{{ item.category.name }}</td>
+
+                            <td>
+                                <span class="transaction-type {% if item.kind == 'income' %}type-income{% else %}type-expense{% endif %}">
+                                    {{ item.kind }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {% if item.kind == "income" %}
+
+                                    <strong class="income-value">
+                                        +₹{{ item.amount|floatformat:2 }}
+                                    </strong>
+
+                                {% else %}
+
+                                    <strong class="expense-value">
+                                        -₹{{ item.amount|floatformat:2 }}
+                                    </strong>
+
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                    {% empty %}
+
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                No transactions found.
+                                Start by adding your first transaction.
+                            </td>
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</section>
+
+{% endblock %}
