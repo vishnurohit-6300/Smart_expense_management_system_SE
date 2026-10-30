@@ -1,9 +1,10 @@
 from decimal import Decimal
 
-from budgets.models import Budget
-from categories.models import Category
 from django.db.models import DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
+
+from budgets.models import Budget
+from categories.models import Category
 from transactions.models import Transaction
 from transactions.services import totals
 
