@@ -1,1 +1,38 @@
-{% extends 'base.html' %}{% block content %}<h1>Welcome back</h1><form method="post" class="panel">{% csrf_token %}{{ form.as_p }}<button>Login</button></form><p>New here? <a href="{% url 'accounts:register' %}">Create an account</a>.</p>{% endblock %}
+
+{% extends 'base.html' %}
+
+{% block title %}Login | Smart Expense{% endblock %}
+
+{% block content %}
+
+<section class="auth-page">
+
+    <div class="panel">
+
+        <h1>Welcome back</h1>
+        <p class="muted">
+            Sign in to manage your expenses and budgets.
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% include 'partials/form_errors.html' %}
+
+            {{ form.as_p }}
+
+            <button type="submit">Login</button>
+        </form>
+
+        <p>
+            Don't have an account?
+            <a href="{% url 'accounts:register' %}">
+                Create an account
+            </a>
+        </p>
+
+    </div>
+
+</section>
+
+{% endblock %}
