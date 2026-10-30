@@ -54,13 +54,19 @@ def get_dashboard_data(user):
 
     for budget in budgets:
         spent = budget.dashboard_spent
-        progress = (spent / budget.limit * Decimal("100")).quantize(
-            Decimal("0.1")
-        )
 
-        if progress > 100:
+        # Calculate the displayed progress percentage.
+        progress = (
+            spent / budget.limit * Decimal("100")
+        ).quantize(Decimal("0.1"))
+
+        # Determine budget status using the exact spending amount.
+        if spent > budget.limit:
             status = "Exceeded"
-        elif progress >= budget.threshold:
+        elif (
+            spent * Decimal("100")
+            >= budget.limit * Decimal(budget.threshold)
+        ):
             status = "Warning"
         else:
             status = "On track"
@@ -74,7 +80,10 @@ def get_dashboard_data(user):
                 "limit": budget.limit,
                 "threshold": budget.threshold,
                 "progress": progress,
-                "progress_bar": min(progress, Decimal("100")),
+                "progress_bar": min(
+                    progress,
+                    Decimal("100"),
+                ),
                 "status": status,
             }
         )
@@ -84,3 +93,4 @@ def get_dashboard_data(user):
         "recent": transactions[:10],
         "budgets": budget_summaries,
     }
+
