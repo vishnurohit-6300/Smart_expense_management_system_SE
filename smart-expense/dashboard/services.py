@@ -8,6 +8,8 @@ from categories.models import Category
 from transactions.models import Transaction
 from transactions.services import totals
 
+MONEY_FIELD = DecimalField(max_digits=12, decimal_places=2)
+
 
 
 MONEY_FIELD = DecimalField(max_digits=12, decimal_places=2)
