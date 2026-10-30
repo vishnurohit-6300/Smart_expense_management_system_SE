@@ -1,13 +1,12 @@
-
 from decimal import Decimal
-
-from django.db.models import DecimalField, F, Q, Sum, Value
-from django.db.models.functions import Coalesce
 
 from budgets.models import Budget
 from categories.models import Category
+from django.db.models import DecimalField, F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from transactions.models import Transaction
 from transactions.services import totals
+
 
 
 MONEY_FIELD = DecimalField(max_digits=12, decimal_places=2)
