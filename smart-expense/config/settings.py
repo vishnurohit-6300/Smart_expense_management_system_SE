@@ -69,7 +69,9 @@ TEMPLATES = [
         },
     }
 ]
+
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 # Database: PostgreSQL by default; DB_ENGINE=sqlite is for quick local/unit-test runs only.
 if os.environ.get("DB_ENGINE", "postgres").lower() == "sqlite":
